@@ -1,6 +1,6 @@
 module github.com/Evgen-Mutagen/go-musthave-diploma-tpl
 
-go 1.24.2
+go 1.23.11
 
 require (
 	github.com/go-chi/chi/v5 v5.2.2
