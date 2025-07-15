@@ -46,8 +46,6 @@ func (c *OrderController) UploadOrder(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Order already uploaded by another user", http.StatusConflict)
 		case service.ErrInvalidOrderNumber:
 			http.Error(w, "Invalid order number", http.StatusUnprocessableEntity)
-		default:
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		return
 	}
