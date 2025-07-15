@@ -3,6 +3,7 @@ package middlewareinternal
 import (
 	"context"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/service"
+	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/types"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/util/logger"
 	"go.uber.org/zap"
 	"net/http"
@@ -60,6 +61,6 @@ func extractToken(r *http.Request) (string, error) {
 }
 
 func GetUserIDFromContext(ctx context.Context) (int64, bool) {
-	userID, ok := ctx.Value("user_id").(int64)
+	userID, ok := ctx.Value(types.UserIDKey).(int64)
 	return userID, ok
 }

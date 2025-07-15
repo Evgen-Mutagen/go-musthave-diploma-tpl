@@ -50,11 +50,11 @@ func (d *Database) Migrate() error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	migrationsUrl := "file://" + filepath.ToSlash(absPath)
-	fmt.Printf("Migrations URL: %s\n", migrationsUrl) // Для отладки
+	migrationsURL := "file://" + filepath.ToSlash(absPath)
+	fmt.Printf("Migrations URL: %s\n", migrationsURL) // Для отладки
 
 	m, err := migrate.NewWithDatabaseInstance(
-		migrationsUrl,
+		migrationsURL,
 		"postgres",
 		driver,
 	)

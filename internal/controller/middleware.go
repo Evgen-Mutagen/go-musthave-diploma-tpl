@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/service"
+	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/types"
 	"net/http"
 )
 
@@ -21,7 +22,7 @@ func AuthMiddleware(authService service.AuthService) func(http.Handler) http.Han
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), "user_id", userID)
+			ctx := context.WithValue(r.Context(), types.UserIDKey, userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
