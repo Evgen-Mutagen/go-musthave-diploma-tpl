@@ -47,14 +47,14 @@ func (s *withdrawalService) Withdraw(ctx context.Context, userID int64, orderNum
 	}
 	defer tx.Rollback()
 
-	balance, err := s.userRepo.GetBalance(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("failed to get balance: %w", err)
-	}
+	//balance, err := s.userRepo.GetBalance(ctx, userID)
+	//if err != nil {
+	//	return fmt.Errorf("failed to get balance: %w", err)
+	//}
 
-	if balance.Current < sum {
-		return ErrWithdrawalInsufficientFunds
-	}
+	//if balance.Current < sum {
+	//	return ErrWithdrawalInsufficientFunds
+	//}
 
 	// Создаем запись о выводе
 	withdrawal := &model.Withdrawal{
