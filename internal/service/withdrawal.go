@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/model"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/repository"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/util/luhn"
@@ -39,31 +40,37 @@ func (s *withdrawalService) Withdraw(ctx context.Context, userID int64, orderNum
 		return ErrWithdrawalInvalidOrderNumber
 	}
 
+	// Проверяем баланс в транзакции
+	tx, err := s.userRepo.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	balance, err := s.userRepo.GetBalance(ctx, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get balance: %w", err)
 	}
 
 	if balance.Current < sum {
 		return ErrWithdrawalInsufficientFunds
 	}
 
-	tx, err := s.userRepo.BeginTx(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.ExecContext(ctx,
-		"UPDATE users SET balance = balance - $1, withdrawn = withdrawn + $2 WHERE id = $3",
-		sum, sum, userID); err != nil {
-		return err
+	// Создаем запись о выводе
+	withdrawal := &model.Withdrawal{
+		Order:       orderNumber,
+		UserID:      userID,
+		Sum:         sum,
+		ProcessedAt: time.Now(),
 	}
 
-	if _, err := tx.ExecContext(ctx,
-		"INSERT INTO withdrawals (order_number, user_id, sum, processed_at) VALUES ($1, $2, $3, $4)",
-		orderNumber, userID, sum, time.Now()); err != nil {
-		return err
+	if err := s.withdrawalRepo.Create(ctx, withdrawal); err != nil {
+		return fmt.Errorf("failed to create withdrawal: %w", err)
+	}
+
+	// Обновляем баланс
+	if err := s.userRepo.UpdateBalance(ctx, userID, -sum); err != nil {
+		return fmt.Errorf("failed to update balance: %w", err)
 	}
 
 	return tx.Commit()

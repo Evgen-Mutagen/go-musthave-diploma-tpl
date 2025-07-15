@@ -41,11 +41,11 @@ func (r *orderRepository) GetByNumber(ctx context.Context, number string) (*mode
 		&order.Accrual,
 		&order.UploadedAt,
 	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get order: %w", err)
 	}
 	return order, nil
 }

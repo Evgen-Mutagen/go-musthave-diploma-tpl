@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/model"
 )
 
@@ -60,9 +61,15 @@ func (r *userRepository) GetByID(ctx context.Context, id int64) (*model.User, er
 }
 
 func (r *userRepository) UpdateBalance(ctx context.Context, userID int64, amount float64) error {
-	query := `UPDATE users SET balance = balance + $1 WHERE id = $2`
+	query := `UPDATE users 
+              SET balance = balance + $1, 
+                  withdrawn = withdrawn + CASE WHEN $1 < 0 THEN -$1 ELSE 0 END
+              WHERE id = $2`
 	_, err := r.db.db.ExecContext(ctx, query, amount, userID)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update balance: %w", err)
+	}
+	return nil
 }
 
 func (r *userRepository) GetBalance(ctx context.Context, userID int64) (*model.UserBalance, error) {

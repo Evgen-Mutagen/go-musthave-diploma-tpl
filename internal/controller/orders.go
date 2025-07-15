@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/core"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/service"
 	"go.uber.org/zap"
 	"io"
@@ -10,11 +11,11 @@ import (
 )
 
 type OrderController struct {
-	orderService service.OrderService
+	orderService core.OrderService
 	logger       *zap.Logger
 }
 
-func NewOrderController(orderService service.OrderService, logger *zap.Logger) *OrderController {
+func NewOrderController(orderService core.OrderService, logger *zap.Logger) *OrderController {
 	return &OrderController{
 		orderService: orderService,
 		logger:       logger,
