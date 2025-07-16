@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/model"
+	"go.uber.org/zap"
 )
 
 type OrderRepository interface {
@@ -117,9 +118,13 @@ func (r *orderRepository) GetUnprocessedOrders(ctx context.Context) ([]*model.Or
               ORDER BY uploaded_at ASC`
 	rows, err := r.db.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query orders: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			zap.L().Error("failed to close rows", zap.Error(closeErr))
+		}
+	}()
 
 	var orders []*model.Order
 	for rows.Next() {
@@ -131,9 +136,14 @@ func (r *orderRepository) GetUnprocessedOrders(ctx context.Context) ([]*model.Or
 			&order.Accrual,
 			&order.UploadedAt,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan order: %w", err)
 		}
 		orders = append(orders, &order)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
 	return orders, nil
 }
