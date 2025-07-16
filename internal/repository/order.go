@@ -135,10 +135,5 @@ func (r *orderRepository) GetUnprocessedOrders(ctx context.Context) ([]*model.Or
 		}
 		orders = append(orders, &order)
 	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	return orders, nil
 }

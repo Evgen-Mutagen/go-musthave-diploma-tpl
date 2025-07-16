@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/controller"
+	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/core"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/middlewareinternal"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/repository"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/service"
@@ -14,33 +15,46 @@ import (
 )
 
 type App struct {
-	cfg    *Config
-	router *chi.Mux
-	db     *repository.Database
-	logger *zap.Logger
-	server *http.Server
+	cfg          *Config
+	Router       *chi.Mux
+	db           *repository.Database
+	Logger       *zap.Logger
+	Server       *http.Server
+	OrderService core.OrderService
 }
 
 func New(cfg *Config) *App {
-	return &App{
+	app := &App{
 		cfg:    cfg,
-		router: chi.NewRouter(),
-		logger: zap.L(),
+		Router: chi.NewRouter(),
+		Logger: zap.L(),
 	}
+
+	// Инициализируем зависимости
+	app.initDB()
+
+	orderRepo := repository.NewOrderRepository(app.db)
+
+	userRepo := repository.NewUserRepository(app.db)
+
+	app.OrderService = service.NewOrderService(orderRepo, cfg.AccrualSystemAddress, userRepo, app.Logger)
+
+	app.initRouter()
+	return app
 }
 
 func (a *App) Run(ctx context.Context) error {
 	a.initDB()
 	a.initRouter()
 
-	a.server = &http.Server{
+	a.Server = &http.Server{
 		Addr:    a.cfg.RunAddress,
-		Handler: a.router,
+		Handler: a.Router,
 	}
 
 	go func() {
-		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			a.logger.Fatal("Server failed", zap.Error(err))
+		if err := a.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			a.Logger.Fatal("Server failed", zap.Error(err))
 		}
 	}()
 
@@ -51,23 +65,23 @@ func (a *App) Run(ctx context.Context) error {
 func (a *App) initDB() error {
 	db, err := repository.NewDatabase(a.cfg.DatabaseURI)
 	if err != nil {
-		a.logger.Error("Database initialization failed",
+		a.Logger.Error("Database initialization failed",
 			zap.Error(err),
 			zap.String("dsn", a.cfg.MaskDBPassword()))
 		return err
 	}
 	a.db = db
 
-	a.logger.Info("Database initialized successfully")
+	a.Logger.Info("Database initialized successfully")
 	return nil
 }
 
 func (a *App) initRouter() {
-	a.router.Use(middleware.RequestID)
-	a.router.Use(middleware.RealIP)
-	a.router.Use(middleware.Logger)
-	a.router.Use(middleware.Recoverer)
-	a.router.Use(middleware.Compress(5))
+	a.Router.Use(middleware.RequestID)
+	a.Router.Use(middleware.RealIP)
+	a.Router.Use(middleware.Logger)
+	a.Router.Use(middleware.Recoverer)
+	a.Router.Use(middleware.Compress(5))
 
 	// Services
 	userRepo := repository.NewUserRepository(a.db)
@@ -75,11 +89,11 @@ func (a *App) initRouter() {
 	withdrawalRepo := repository.NewWithdrawalRepository(a.db)
 
 	authService := service.NewAuthService(userRepo)
-	orderService := service.NewOrderService(orderRepo, a.cfg.AccrualSystemAddress)
+	orderService := service.NewOrderService(orderRepo, a.cfg.AccrualSystemAddress, userRepo, a.Logger)
 	balanceService := service.NewBalanceService(userRepo, orderRepo, withdrawalRepo)
 	withdrawalService := service.NewWithdrawalService(withdrawalRepo, userRepo)
 
-	logger := a.logger
+	logger := a.Logger
 	// Controllers
 	authController := controller.NewAuthController(authService, logger)
 	orderController := controller.NewOrderController(orderService, logger)
@@ -87,11 +101,11 @@ func (a *App) initRouter() {
 	withdrawalController := controller.NewWithdrawalController(withdrawalService)
 
 	// Public routes
-	a.router.Post("/api/user/register", authController.Register)
-	a.router.Post("/api/user/login", authController.Login)
+	a.Router.Post("/api/user/register", authController.Register)
+	a.Router.Post("/api/user/login", authController.Login)
 
 	// Protected routes
-	a.router.Group(func(r chi.Router) {
+	a.Router.Group(func(r chi.Router) {
 		r.Use(middlewareinternal.JWTAuthMiddleware(authService))
 
 		r.Post("/api/user/orders", orderController.UploadOrder)
@@ -103,7 +117,7 @@ func (a *App) initRouter() {
 }
 
 func (a *App) shutdown() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	return a.server.Shutdown(ctx)
+	return a.Server.Shutdown(ctx)
 }
