@@ -14,11 +14,17 @@ import (
 
 func main() {
 	cfg := app.NewConfigFromFlags()
+	fmt.Printf("LogLevel: %s\n", cfg.LogLevel)
 
 	if err := logger.Init(cfg.LogLevel); err != nil {
 		panic(fmt.Sprintf("Failed to init logger: %v", err))
 	}
 	defer logger.Sync()
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			fmt.Printf("Failed to sync logs: %v\n", err)
+		}
+	}()
 
 	logger.Log.Info("Testing database connection and migrations...")
 	testDB, err := repository.NewDatabase(cfg.DatabaseURI)

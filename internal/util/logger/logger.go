@@ -8,14 +8,15 @@ import (
 var Log *zap.Logger
 
 func Init(level string) error {
-	logLevel := zapcore.InfoLevel
+	logLevel := zapcore.DebugLevel
 	if err := logLevel.UnmarshalText([]byte(level)); err != nil {
 		return err
 	}
 
-	config := zap.NewProductionConfig()
+	config := zap.NewDevelopmentConfig()
 	config.Level = zap.NewAtomicLevelAt(logLevel)
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	config.OutputPaths = []string{"stdout"}
+	config.ErrorOutputPaths = []string{"stderr"}
 
 	var err error
 	Log, err = config.Build()

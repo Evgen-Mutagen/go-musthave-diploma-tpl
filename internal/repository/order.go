@@ -25,15 +25,23 @@ func NewOrderRepository(db *Database) OrderRepository {
 }
 
 func (r *orderRepository) Create(ctx context.Context, order *model.Order) error {
-	query := `INSERT INTO orders (number, user_id, status, uploaded_at) 
+	query := `INSERT INTO orders (number, user_id, status, uploaded_at)
               VALUES ($1, $2, $3, $4)`
-	_, err := r.db.db.ExecContext(ctx, query, order.Number, order.UserID, order.Status, order.UploadedAt)
+
+	_, err := r.db.db.ExecContext(ctx, query,
+		order.Number,
+		order.UserID,
+		order.Status,
+		order.UploadedAt,
+	)
 	return err
 }
 
 func (r *orderRepository) GetByNumber(ctx context.Context, number string) (*model.Order, error) {
 	order := &model.Order{}
-	query := `SELECT number, user_id, status, accrual, uploaded_at FROM orders WHERE number = $1`
+	query := `SELECT number, user_id, status, accrual, uploaded_at 
+              FROM orders WHERE number = $1`
+
 	err := r.db.db.QueryRowContext(ctx, query, number).Scan(
 		&order.Number,
 		&order.UserID,
@@ -41,12 +49,14 @@ func (r *orderRepository) GetByNumber(ctx context.Context, number string) (*mode
 		&order.Accrual,
 		&order.UploadedAt,
 	)
+
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get order: %w", err)
 	}
+
 	return order, nil
 }
 

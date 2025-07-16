@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/service"
+	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/types"
 	"net/http"
 
 	"github.com/go-chi/render"
@@ -16,7 +17,7 @@ func NewWithdrawalController(withdrawalService service.WithdrawalService) *Withd
 }
 
 func (c *WithdrawalController) Withdraw(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id").(int64)
+	userID := r.Context().Value(types.UserIDKey).(int64)
 
 	var request struct {
 		Order string  `json:"order"`
@@ -45,7 +46,7 @@ func (c *WithdrawalController) Withdraw(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *WithdrawalController) GetWithdrawals(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id").(int64)
+	userID := r.Context().Value(types.UserIDKey).(int64)
 
 	withdrawals, err := c.withdrawalService.GetWithdrawals(r.Context(), userID)
 	if err != nil {

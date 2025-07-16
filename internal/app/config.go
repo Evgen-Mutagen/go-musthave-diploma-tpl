@@ -19,7 +19,7 @@ func NewConfigFromFlags() *Config {
 	flag.StringVar(&cfg.RunAddress, "a", "localhost:8080", "Server address (env: RUN_ADDRESS)")
 	flag.StringVar(&cfg.DatabaseURI, "d", "", "Database URI (env: DATABASE_URI)")
 	flag.StringVar(&cfg.AccrualSystemAddress, "r", "", "Accrual system address (env: ACCRUAL_SYSTEM_ADDRESS)")
-	flag.StringVar(&cfg.LogLevel, "l", "info", "Log level (debug|info|warn|error) (env: LOG_LEVEL)")
+	flag.StringVar(&cfg.LogLevel, "l", "debug", "Log level (debug|info|warn|error) (env: LOG_LEVEL)")
 	flag.Parse()
 
 	cfg.applyEnvVars()

@@ -31,7 +31,7 @@ func JWTAuthMiddleware(authService service.AuthService) func(http.Handler) http.
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), "user_id", userID)
+			ctx := context.WithValue(r.Context(), types.UserIDKey, userID)
 			logger.Log.Debug("User authenticated",
 				zap.Int64("user_id", userID),
 				zap.String("path", r.URL.Path))

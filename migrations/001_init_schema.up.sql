@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
                                       number TEXT PRIMARY KEY,
                                       user_id BIGINT NOT NULL REFERENCES users(id),
                                       status order_status NOT NULL DEFAULT 'NEW'::order_status,
-                                      accrual DOUBLE PRECISION,
+                                      accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
                                       uploaded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 

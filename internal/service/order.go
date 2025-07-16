@@ -60,7 +60,11 @@ func (s *orderService) UploadOrder(ctx context.Context, userID int64, orderNumbe
 		UploadedAt: time.Now(),
 	}
 
-	return s.orderRepo.Create(ctx, order)
+	if err := s.orderRepo.Create(ctx, order); err != nil {
+		return fmt.Errorf("failed to create order: %w", err)
+	}
+
+	return nil
 }
 
 func (s *orderService) GetOrders(ctx context.Context, userID int64) ([]*model.Order, error) {
