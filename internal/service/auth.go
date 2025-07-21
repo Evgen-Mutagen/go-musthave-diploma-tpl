@@ -27,10 +27,11 @@ type authService struct {
 	jwtSecretKey string
 }
 
-func NewAuthService(userRepo repository.UserRepository) AuthService {
+func NewAuthService(userRepo repository.UserRepository, jwtSecret string) AuthService {
+
 	return &authService{
 		userRepo:     userRepo,
-		jwtSecretKey: "secret-key", // В реальном приложении должно быть из конфига
+		jwtSecretKey: jwtSecret,
 	}
 }
 

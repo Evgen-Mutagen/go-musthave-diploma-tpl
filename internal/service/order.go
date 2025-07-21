@@ -33,7 +33,7 @@ func NewOrderService(
 	accrualAddr string,
 	userRepo repository.UserRepository,
 	logger *zap.Logger,
-) core.OrderService {
+) core.OrderProcessor {
 	return &orderService{
 		orderRepo:          repo,
 		userRepo:           userRepo,

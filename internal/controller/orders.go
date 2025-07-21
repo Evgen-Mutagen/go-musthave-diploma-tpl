@@ -2,10 +2,9 @@ package controller
 
 import (
 	"errors"
-	"fmt"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/core"
+	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/middlewareinternal"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/service"
-	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/types"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -14,11 +13,11 @@ import (
 )
 
 type OrderController struct {
-	orderService core.OrderService
+	orderService core.OrderProcessor
 	logger       *zap.Logger
 }
 
-func NewOrderController(orderService core.OrderService, logger *zap.Logger) *OrderController {
+func NewOrderController(orderService core.OrderProcessor, logger *zap.Logger) *OrderController {
 	return &OrderController{
 		orderService: orderService,
 		logger:       logger,
@@ -27,25 +26,12 @@ func NewOrderController(orderService core.OrderService, logger *zap.Logger) *Ord
 
 func (c *OrderController) UploadOrder(w http.ResponseWriter, r *http.Request) {
 	if c.logger == nil {
-		fmt.Println("===== Логгер в OrderController равен nil! =====")
-	} else {
-		c.logger.Debug("===== UploadOrder called =====")
+		panic("logger is not initialized")
 	}
 
-	c.logger.Info("UploadOrder called")
-
-	ctx := r.Context()
-	c.logger.Debug("Context dump",
-		zap.Any("types.UserIDKey", ctx.Value(types.UserIDKey)),
-		zap.Any("string 'user_id'", ctx.Value("user_id")),
-	)
-
-	userID, ok := ctx.Value(types.UserIDKey).(int64)
-	if !ok {
-		c.logger.Error("UserID not found in context",
-			zap.Any("types.UserIDKey", ctx.Value(types.UserIDKey)),
-			zap.Any("string 'user_id'", ctx.Value("user_id")),
-		)
+	userID, err := middlewareinternal.GetUserIDFromContext(r.Context())
+	if err != nil {
+		c.logger.Error("Failed to get user ID", zap.Error(err))
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -94,9 +80,9 @@ func (c *OrderController) UploadOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *OrderController) GetOrders(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(types.UserIDKey).(int64)
-	if !ok {
-		c.logger.Error("User ID not found in context")
+	userID, err := middlewareinternal.GetUserIDFromContext(r.Context())
+	if err != nil {
+		c.logger.Error("Failed to get user ID", zap.Error(err))
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

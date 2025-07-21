@@ -7,6 +7,7 @@ import (
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/repository"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/util/logger"
 	"go.uber.org/zap"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,11 +24,14 @@ func main() {
 	defer logger.Sync()
 
 	logger.Log.Info("Testing database connection and migrations...")
-	testDB, err := repository.NewDatabase(cfg.DatabaseURI)
+	db, err := repository.NewDatabase(repository.DatabaseConfig{
+		DSN:            cfg.DatabaseURI,
+		MigrationsPath: cfg.MigrationsPath,
+	})
 	if err != nil {
-		logger.Log.Fatal("Database initialization failed", zap.Error(err))
+		log.Fatalf("Database initialization failed: %v", err)
 	}
-	defer testDB.Close()
+	defer db.Close()
 
 	logger.Log.Info("Database connection and migrations OK")
 
@@ -39,22 +43,7 @@ func runServer(application *app.App, cfg *app.Config) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func() {
-		ticker := time.NewTicker(5 * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				application.Logger.Info("Order processing stopped")
-				return
-			case <-ticker.C:
-				if err := application.OrderService.ProcessOrders(ctx); err != nil {
-					application.Logger.Error("Order processing failed", zap.Error(err))
-				}
-			}
-		}
-	}()
+	go app.StartOrderProcessor(ctx, application.OrderService, application.Logger)
 
 	application.Server = &http.Server{
 		Addr:    cfg.RunAddress,

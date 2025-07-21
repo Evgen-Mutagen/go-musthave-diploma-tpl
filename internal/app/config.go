@@ -2,8 +2,8 @@ package app
 
 import (
 	"flag"
+	"net/url"
 	"os"
-	"strings"
 )
 
 type Config struct {
@@ -11,6 +11,8 @@ type Config struct {
 	DatabaseURI          string
 	AccrualSystemAddress string
 	LogLevel             string
+	JWTSecretKey         string
+	MigrationsPath       string
 }
 
 func NewConfigFromFlags() *Config {
@@ -20,6 +22,8 @@ func NewConfigFromFlags() *Config {
 	flag.StringVar(&cfg.DatabaseURI, "d", "", "Database URI (env: DATABASE_URI)")
 	flag.StringVar(&cfg.AccrualSystemAddress, "r", "", "Accrual system address (env: ACCRUAL_SYSTEM_ADDRESS)")
 	flag.StringVar(&cfg.LogLevel, "l", "debug", "Log level (debug|info|warn|error) (env: LOG_LEVEL)")
+	flag.StringVar(&cfg.JWTSecretKey, "jwt-secret", "", "JWT secret key (env: JWT_SECRET_KEY)")
+	flag.StringVar(&cfg.MigrationsPath, "migrations", "./migrations", "Path to migrations folder (env:MIGRATIONS_PATH)")
 	flag.Parse()
 
 	cfg.applyEnvVars()
@@ -47,21 +51,19 @@ func (c *Config) validate() {
 	if c.DatabaseURI == "" {
 		panic("Database URI is required (use -d flag or DATABASE_URI env)")
 	}
+
 }
 
 func (c *Config) MaskDBPassword() string {
-	dsn := c.DatabaseURI
-	if strings.Contains(dsn, "@") {
-		parts := strings.Split(dsn, "@")
-		if len(parts) > 1 {
-			auth := parts[0]
-			if strings.Contains(auth, ":") {
-				userPass := strings.Split(auth, ":")
-				if len(userPass) > 1 {
-					return strings.Join([]string{userPass[0], "***", parts[1]}, "@")
-				}
-			}
+	u, err := url.Parse(c.DatabaseURI)
+	if err != nil {
+		return c.DatabaseURI
+	}
+
+	if u.User != nil {
+		if _, hasPassword := u.User.Password(); hasPassword {
+			u.User = url.UserPassword(u.User.Username(), "***")
 		}
 	}
-	return dsn
+	return u.String()
 }

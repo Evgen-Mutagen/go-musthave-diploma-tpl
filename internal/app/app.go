@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/controller"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/core"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/middlewareinternal"
@@ -20,7 +21,7 @@ type App struct {
 	db           *repository.Database
 	Logger       *zap.Logger
 	Server       *http.Server
-	OrderService core.OrderService
+	OrderService core.OrderProcessor
 }
 
 func New(cfg *Config) *App {
@@ -30,7 +31,6 @@ func New(cfg *Config) *App {
 		Logger: zap.L(),
 	}
 
-	// Инициализируем зависимости
 	app.initDB()
 
 	orderRepo := repository.NewOrderRepository(app.db)
@@ -63,16 +63,24 @@ func (a *App) Run(ctx context.Context) error {
 }
 
 func (a *App) initDB() error {
-	db, err := repository.NewDatabase(a.cfg.DatabaseURI)
+
+	dbConfig := repository.DatabaseConfig{
+		DSN:            a.cfg.DatabaseURI,
+		MigrationsPath: a.cfg.MigrationsPath,
+	}
+
+	db, err := repository.NewDatabase(dbConfig)
 	if err != nil {
 		a.Logger.Error("Database initialization failed",
-			zap.Error(err),
-			zap.String("dsn", a.cfg.MaskDBPassword()))
-		return err
+			zap.String("dsn", a.cfg.MaskDBPassword()),
+			zap.Error(err))
+		return fmt.Errorf("database initialization failed: %w", err)
 	}
-	a.db = db
 
-	a.Logger.Info("Database initialized successfully")
+	a.db = db
+	a.Logger.Info("Database initialized successfully",
+		zap.String("migrations_path", a.cfg.MigrationsPath))
+
 	return nil
 }
 
@@ -88,7 +96,7 @@ func (a *App) initRouter() {
 	orderRepo := repository.NewOrderRepository(a.db)
 	withdrawalRepo := repository.NewWithdrawalRepository(a.db)
 
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, a.cfg.JWTSecretKey)
 	orderService := service.NewOrderService(orderRepo, a.cfg.AccrualSystemAddress, userRepo, a.Logger)
 	balanceService := service.NewBalanceService(userRepo, orderRepo, withdrawalRepo)
 	withdrawalService := service.NewWithdrawalService(withdrawalRepo, userRepo)
@@ -120,4 +128,21 @@ func (a *App) shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	return a.Server.Shutdown(ctx)
+}
+
+func StartOrderProcessor(ctx context.Context, processor core.OrderProcessor, logger *zap.Logger) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Info("Order processing stopped")
+			return
+		case <-ticker.C:
+			if err := processor.ProcessOrders(ctx); err != nil {
+				logger.Error("Order processing failed", zap.Error(err))
+			}
+		}
+	}
 }

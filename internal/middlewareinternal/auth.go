@@ -2,6 +2,7 @@ package middlewareinternal
 
 import (
 	"context"
+	"fmt"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/service"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/types"
 	"github.com/Evgen-Mutagen/go-musthave-diploma-tpl/internal/util/logger"
@@ -60,7 +61,10 @@ func extractToken(r *http.Request) (string, error) {
 	return parts[1], nil
 }
 
-func GetUserIDFromContext(ctx context.Context) (int64, bool) {
+func GetUserIDFromContext(ctx context.Context) (int64, error) {
 	userID, ok := ctx.Value(types.UserIDKey).(int64)
-	return userID, ok
+	if !ok {
+		return 0, fmt.Errorf("user ID not found in context")
+	}
+	return userID, nil
 }

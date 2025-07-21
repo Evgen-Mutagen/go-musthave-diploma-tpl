@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -17,42 +18,48 @@ type Database struct {
 	db *sql.DB
 }
 
-func NewDatabase(dsn string) (*Database, error) {
-	db, err := sql.Open("postgres", dsn)
+type DatabaseConfig struct {
+	DSN            string
+	MigrationsPath string
+}
+
+func NewDatabase(cfg DatabaseConfig) (*Database, error) {
+	db, err := sql.Open("postgres", cfg.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	database := &Database{db: db}
+	absPath, err := filepath.Abs(cfg.MigrationsPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path for migrations: %w", err)
+	}
 
-	if err := database.Migrate(); err != nil {
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("migrations directory does not exist: %s", absPath)
+	}
+
+	database := &Database{db: db}
+	if err := database.Migrate(absPath); err != nil {
 		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
 	return database, nil
 }
 
-func (d *Database) Migrate() error {
+func (d *Database) Migrate(migrationsPath string) error {
 	driver, err := postgres.WithInstance(d.db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to create driver: %w", err)
 	}
 
-	absPath, err := filepath.Abs("migrations")
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	migrationsURL := "file://" + filepath.ToSlash(absPath)
-	fmt.Printf("Migrations URL: %s\n", migrationsURL) // Для отладки
-
+	migrationsURL := "file://" + filepath.ToSlash(migrationsPath)
 	m, err := migrate.NewWithDatabaseInstance(
 		migrationsURL,
 		"postgres",
